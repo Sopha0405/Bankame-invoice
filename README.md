@@ -5,7 +5,7 @@ API con FastAPI para analizar facturas bolivianas usando Gemini y validar datos 
 ## Requisitos
 
 - Python 3.12
-- `GEMINI_API_KEY`
+- `GEMINI_API_KEY` valida de Gemini
 
 ## Ejecucion local
 
@@ -31,7 +31,7 @@ Crea un archivo `.env` local:
 GEMINI_API_KEY=tu_api_key
 ```
 
-En Cloud Run configura la misma variable como secreto o variable de entorno. No subas `.env`, llaves ni archivos JSON de credenciales.
+En Cloud Run configura la misma variable como secreto. No subas `.env`, llaves ni archivos JSON de credenciales.
 
 ## Docker
 
@@ -62,7 +62,7 @@ gcloud run deploy bankame-invoice \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=tu_api_key
+  --set-secrets GEMINI_API_KEY=gemini-api-key:latest
 ```
 
 Para produccion, usa Secret Manager en lugar de pasar la llave en texto plano.
@@ -70,5 +70,5 @@ Para produccion, usa Secret Manager en lugar de pasar la llave en texto plano.
 ## Tests
 
 ```bash
-pytest
+pytest tests
 ```
