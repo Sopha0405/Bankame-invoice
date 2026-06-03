@@ -11,9 +11,15 @@ from app.validation import build_validation_status, compare_address, compare_nam
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
 MODEL_NAME = "gemini-2.5-flash"
+
+
+def get_gemini_client():
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY no esta configurada.")
+
+    return genai.Client(api_key=api_key)
 
 
 def limpiar_json(texto: str):
@@ -65,6 +71,7 @@ def ejecutar_gemini(prompt: str, file_bytes: bytes, mime_type: str):
 
     for intento in range(3):
         try:
+            client = get_gemini_client()
             response = client.models.generate_content(
                 model=MODEL_NAME,
                 contents=[
