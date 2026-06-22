@@ -7,7 +7,7 @@ from xml.etree import ElementTree as ET
 import requests
 
 
-KML_PATH = Path(__file__).with_name("Unidades Vecinales de Santa Cruz de la Sierra.kml")
+KML_PATH = Path(__file__).with_name("uv_santa_cruz.kml")
 KML_NS = {"kml": "http://www.opengis.net/kml/2.2"}
 
 
