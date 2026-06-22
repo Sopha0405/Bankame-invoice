@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 
@@ -11,7 +12,16 @@ from app.validation import build_validation_status, compare_address, compare_nam
 
 load_dotenv()
 
-MODEL_NAME = "gemini-2.5-flash"
+logger = logging.getLogger(__name__)
+
+MODEL_NAMES = [
+    model.strip()
+    for model in os.getenv(
+        "GEMINI_MODELS",
+        "gemini-2.5-flash,gemini-2.5-flash-lite",
+    ).split(",")
+    if model.strip()
+]
 
 
 def get_gemini_client():
@@ -69,26 +79,44 @@ def missing_required_fields(data: dict) -> list[str]:
 def ejecutar_gemini(prompt: str, file_bytes: bytes, mime_type: str):
     last_error = None
 
-    for intento in range(3):
-        try:
-            client = get_gemini_client()
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=[
-                    prompt,
-                    types.Part.from_bytes(
-                        data=file_bytes,
-                        mime_type=mime_type,
+    for model_name in MODEL_NAMES:
+        for intento in range(3):
+            try:
+                client = get_gemini_client()
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[
+                        prompt,
+                        types.Part.from_bytes(
+                            data=file_bytes,
+                            mime_type=mime_type,
+                        ),
+                    ],
+                    config=types.GenerateContentConfig(
+                        temperature=0,
+                        response_mime_type="application/json",
                     ),
-                ],
-            )
+                )
 
-            if response.text:
-                return response.text
+                if response.text:
+                    usage = response.usage_metadata
+                    logger.info(
+                        "Gemini invoice analysis completed model=%s input_tokens=%s output_tokens=%s",
+                        model_name,
+                        getattr(usage, "prompt_token_count", None),
+                        getattr(usage, "candidates_token_count", None),
+                    )
+                    return response.text
 
-        except Exception as e:
-            last_error = e
-            time.sleep(2 * (intento + 1))
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    "Gemini attempt failed model=%s attempt=%s error_type=%s",
+                    model_name,
+                    intento + 1,
+                    type(e).__name__,
+                )
+                time.sleep(2 * (intento + 1))
 
     raise last_error
 

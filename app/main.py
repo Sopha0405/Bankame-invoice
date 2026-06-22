@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from app.gemini_agent import analizar_factura
 from app.models import FacturaResultado
 
@@ -55,8 +55,9 @@ async def analizar(
         )
 
     except Exception as e:
-        return FacturaResultado(
-            success=False,
-            message=str(e),
-            data=None
+        message = str(e)
+        status_code = 503 if "503" in message or "UNAVAILABLE" in message else 500
+        raise HTTPException(
+            status_code=status_code,
+            detail="Gemini no esta disponible temporalmente" if status_code == 503 else "No fue posible analizar la factura",
         )

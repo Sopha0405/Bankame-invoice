@@ -29,6 +29,7 @@ Crea un archivo `.env` local:
 
 ```env
 GEMINI_API_KEY=tu_api_key
+GEMINI_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite
 ```
 
 En Cloud Run configura la misma variable como secreto. No subas `.env`, llaves ni archivos JSON de credenciales.
@@ -55,17 +56,51 @@ El contenedor expone `8080` por defecto y ejecuta Uvicorn usando la variable `PO
 uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
 ```
 
-Ejemplo de despliegue:
+### Despliegue automatizado
+
+El servicio se publica privado. Gemini se ejecuta dentro de este contenedor y el backend solamente invoca su API HTTP.
+
+Primero crea el secreto una sola vez, sin guardar la clave en archivos:
+
+```powershell
+$ApiKey = Read-Host "Gemini API key" -AsSecureString
+$Ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($ApiKey)
+try {
+    [Runtime.InteropServices.Marshal]::PtrToStringBSTR($Ptr) |
+        gcloud secrets create gemini-api-key --data-file=-
+} finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($Ptr)
+}
+```
+
+Despliega indicando la cuenta de servicio usada por `bankame-backend`:
+
+```powershell
+.\deploy-cloud-run.ps1 `
+  -ProjectId "PROJECT_ID" `
+  -Region "us-central1" `
+  -CallerServiceAccount "bankame-backend@PROJECT_ID.iam.gserviceaccount.com"
+```
+
+El script:
+
+- habilita Cloud Run, Cloud Build y Secret Manager;
+- crea la identidad de ejecución si no existe;
+- permite que esa identidad lea `gemini-api-key`;
+- despliega el contenedor sin acceso público;
+- concede `roles/run.invoker` al backend indicado.
+
+Comando equivalente manual:
 
 ```bash
 gcloud run deploy bankame-invoice \
   --source . \
   --region us-central1 \
-  --allow-unauthenticated \
+  --no-allow-unauthenticated \
   --set-secrets GEMINI_API_KEY=gemini-api-key:latest
 ```
 
-Para produccion, usa Secret Manager en lugar de pasar la llave en texto plano.
+El backend debe enviar un ID token de Google cuyo audience sea la URL del servicio Cloud Run. No debe conocer ni recibir `GEMINI_API_KEY`.
 
 ## Tests
 
