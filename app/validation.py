@@ -3,6 +3,26 @@ import unicodedata
 from difflib import SequenceMatcher
 from typing import Optional
 
+ADDRESS_MATCH_LEVELS = (
+    "coincidencia_alta",
+    "coincidencia_media",
+    "coincidencia_palabras_minimas",
+)
+
+ADDRESS_STOP_WORDS = {
+    "DE",
+    "DEL",
+    "LA",
+    "LAS",
+    "LOS",
+    "EL",
+    "Y",
+    "EN",
+    "NRO",
+    "NO",
+    "NUMERO",
+}
+
 
 def normalize_text(value: Optional[str]) -> str:
     if not value:
@@ -14,6 +34,14 @@ def normalize_text(value: Optional[str]) -> str:
     value = re.sub(r"[^A-Z0-9\s]", " ", value)
     value = re.sub(r"\s+", " ", value).strip()
     return value
+
+
+def address_tokens(value: Optional[str]) -> set[str]:
+    return {
+        token
+        for token in normalize_text(value).split()
+        if len(token) >= 2 and token not in ADDRESS_STOP_WORDS
+    }
 
 
 def compare_name(
@@ -57,11 +85,14 @@ def compare_address(declared_address: str, extracted_address: Optional[str]) -> 
         return 0.0, "no_detectado"
 
     score = round(SequenceMatcher(None, declared, extracted).ratio(), 4)
+    shared_token_count = len(address_tokens(declared_address) & address_tokens(extracted_address))
 
     if score >= 0.8:
         return score, "coincidencia_alta"
     if score >= 0.55:
         return score, "coincidencia_media"
+    if shared_token_count >= 3:
+        return score, "coincidencia_palabras_minimas"
     if score >= 0.35:
         return score, "coincidencia_baja"
     return score, "no_coincide"
@@ -76,7 +107,7 @@ def build_validation_status(
     if missing_fields:
         return "requiere_revision"
 
-    address_ok = address_level in ("coincidencia_alta", "coincidencia_media") or uv_matched
+    address_ok = address_level in ADDRESS_MATCH_LEVELS or uv_matched
     if name_matched and address_ok:
         return "validacion_aprobada"
 

@@ -8,7 +8,7 @@ from google.genai import types
 from google.genai.errors import ClientError, ServerError
 
 from app.uv_validator import validate_uv_match
-from app.validation import build_validation_status, compare_address, compare_name
+from app.validation import ADDRESS_MATCH_LEVELS, build_validation_status, compare_address, compare_name
 
 load_dotenv()
 
@@ -334,7 +334,7 @@ Responde exactamente con este JSON:
         cliente_geolocalizacion=geolocalizacion,
     )
 
-    address_matched = address_level in ("coincidencia_alta", "coincidencia_media") or uv_validation["address_matched"]
+    address_matched = address_level in ADDRESS_MATCH_LEVELS or uv_validation["address_matched"]
 
     data["invoice_name_matched"] = name_matched
     data["name_match_category"] = name_category

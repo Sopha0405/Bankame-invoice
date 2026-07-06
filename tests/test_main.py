@@ -93,3 +93,26 @@ def test_average_amount_uses_invoice_amount_when_last_month_is_missing():
     apply_average_amount_fallback(data)
 
     assert data["average_amount"] == 220.4
+
+
+def test_declared_address_matches_with_three_shared_words():
+    from app.validation import compare_address
+
+    score, level = compare_address(
+        "Barrio Las Palmas calle Tarija casa 10",
+        "Medidor 882991 zona industrial Calle Tarija Barrio Palmas",
+    )
+
+    assert score < 0.55
+    assert level == "coincidencia_palabras_minimas"
+
+
+def test_declared_address_does_not_match_with_less_than_three_shared_words():
+    from app.validation import compare_address
+
+    _, level = compare_address(
+        "Barrio Las Palmas calle Tarija casa 10",
+        "Avenida Beni zona norte",
+    )
+
+    assert level == "no_coincide"
