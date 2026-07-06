@@ -2,10 +2,10 @@ import json
 import logging
 import os
 import time
-
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from google.genai.errors import ClientError, ServerError
 
 from app.uv_validator import validate_uv_match
 from app.validation import build_validation_status, compare_address, compare_name
@@ -13,6 +13,11 @@ from app.validation import build_validation_status, compare_address, compare_nam
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+class GeminiAnalysisError(Exception):
+    def __init__(self, message: str, status_code: int = 502):
+        super().__init__(message)
+        self.status_code = status_code
 
 MODEL_NAMES = [
     model.strip()
@@ -76,6 +81,28 @@ def missing_required_fields(data: dict) -> list[str]:
     return missing
 
 
+def parse_amount(value):
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def apply_average_amount_fallback(data: dict) -> None:
+    average_amount = parse_amount(data.get("average_amount"))
+    if average_amount and average_amount > 0:
+        data["average_amount"] = average_amount
+        return
+
+    for fallback_field in ("last_month_amount", "invoice_amount"):
+        fallback_amount = parse_amount(data.get(fallback_field))
+        if fallback_amount and fallback_amount > 0:
+            data["average_amount"] = fallback_amount
+            return
+
+
 def ejecutar_gemini(prompt: str, file_bytes: bytes, mime_type: str):
     last_error = None
 
@@ -108,17 +135,51 @@ def ejecutar_gemini(prompt: str, file_bytes: bytes, mime_type: str):
                     )
                     return response.text
 
+                last_error = GeminiAnalysisError("Gemini no devolvio contenido.", 502)
+                logger.warning(
+                    "Gemini returned empty response model=%s attempt=%s",
+                    model_name,
+                    intento + 1,
+                )
+
+            except ClientError as e:
+                status_code = getattr(e, "code", None) or getattr(e, "status_code", None) or 400
+                logger.warning(
+                    "Gemini client error model=%s attempt=%s status_code=%s status=%s message=%s",
+                    model_name,
+                    intento + 1,
+                    status_code,
+                    getattr(e, "status", None),
+                    getattr(e, "message", str(e)),
+                )
+                raise GeminiAnalysisError(getattr(e, "message", str(e)), status_code)
+
+            except ServerError as e:
+                last_error = e
+                status_code = getattr(e, "code", None) or getattr(e, "status_code", None)
+                logger.warning(
+                    "Gemini server error model=%s attempt=%s status_code=%s status=%s message=%s",
+                    model_name,
+                    intento + 1,
+                    status_code,
+                    getattr(e, "status", None),
+                    getattr(e, "message", str(e)),
+                )
+
             except Exception as e:
                 last_error = e
                 logger.warning(
-                    "Gemini attempt failed model=%s attempt=%s error_type=%s",
+                    "Gemini attempt failed model=%s attempt=%s error_type=%s message=%s",
                     model_name,
                     intento + 1,
                     type(e).__name__,
+                    str(e),
                 )
+
+            if intento < 2:
                 time.sleep(2 * (intento + 1))
 
-    raise last_error
+    raise GeminiAnalysisError(str(last_error), 503)
 
 
 def analizar_factura(
@@ -154,6 +215,8 @@ DATOS OBLIGATORIOS:
 - basic_service_type: tipo de servicio.
 - average_amount: monto promedio de facturas.
 - unpaid_invoice_count: cantidad de facturas adeudadas, pendientes, vencidas o en mora.
+- Si average_amount no aparece o es 0, usa el monto del ultimo mes.
+- Si tampoco aparece monto del ultimo mes, usa el total a pagar de la factura como average_amount.
 
 NOMBRE:
 Extrae el nombre del titular de la factura en holder_name y nombre_en_factura.
@@ -213,6 +276,7 @@ Prioridad para tipo de servicio:
 unidad de medida > concepto > proveedor
 
 Extrae tambien:
+service_code (codigo de cliente, numero de cuenta, codigo fijo o numero de suministro)
 invoice_amount
 last_month_amount
 average_amount
@@ -227,6 +291,7 @@ Responde exactamente con este JSON:
   "basic_service_type": 2,
   "service_type_label": "agua",
   "service_provider": "SAGUAPAC",
+  "service_code": "",
   "mensaje_validacion": null,
   "holder_name": "",
   "nombre_en_factura": "",
@@ -249,6 +314,7 @@ Responde exactamente con este JSON:
     data["holder_name"] = data.get("holder_name") or data.get("nombre_en_factura")
     data["nombre_en_factura"] = data.get("nombre_en_factura") or data.get("holder_name")
     data["service_type_label"] = data.get("service_type_label") or service_type_label(data.get("basic_service_type"))
+    apply_average_amount_fallback(data)
 
     name_category, name_matched = compare_name(
         holder_name=data.get("holder_name"),

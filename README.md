@@ -32,7 +32,7 @@ GEMINI_API_KEY=tu_api_key
 GEMINI_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite
 ```
 
-En Cloud Run configura la misma variable como secreto. No subas `.env`, llaves ni archivos JSON de credenciales.
+En Cloud Run configura `GEMINI_API_KEY` como secreto. No subas `.env`, llaves ni archivos JSON de credenciales.
 
 ## Docker
 
@@ -78,7 +78,7 @@ Despliega indicando la cuenta de servicio usada por `bankame-backend`:
 ```powershell
 .\deploy-cloud-run.ps1 `
   -ProjectId "PROJECT_ID" `
-  -Region "us-central1" `
+  -Region "southamerica-west1" `
   -CallerServiceAccount "bankame-backend@PROJECT_ID.iam.gserviceaccount.com"
 ```
 
@@ -95,7 +95,7 @@ Comando equivalente manual:
 ```bash
 gcloud run deploy bankame-invoice \
   --source . \
-  --region us-central1 \
+  --region southamerica-west1 \
   --no-allow-unauthenticated \
   --set-secrets GEMINI_API_KEY=gemini-api-key:latest
 ```

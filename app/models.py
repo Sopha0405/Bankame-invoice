@@ -24,6 +24,7 @@ class FacturaData(BaseModel):
     basic_service_type: Optional[BasicServiceType] = None
     service_type_label: Optional[str] = None
     service_provider: Optional[str] = None
+    service_code: Optional[str] = None
 
     invoice_name_matched: bool = False
     name_match_category: Optional[str] = None
