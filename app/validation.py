@@ -10,6 +10,11 @@ ADDRESS_MATCH_LEVELS = (
 )
 
 ADDRESS_STOP_WORDS = {
+    "AV",
+    "AVENIDA",
+    "BARRIO",
+    "CALLE",
+    "CASA",
     "DE",
     "DEL",
     "LA",
@@ -18,9 +23,17 @@ ADDRESS_STOP_WORDS = {
     "EL",
     "Y",
     "EN",
+    "LOTE",
+    "MANZANO",
+    "MZ",
     "NRO",
     "NO",
     "NUMERO",
+    "UNIDAD",
+    "URB",
+    "URBANIZACION",
+    "VECINAL",
+    "ZONA",
 }
 
 
@@ -91,7 +104,7 @@ def compare_address(declared_address: str, extracted_address: Optional[str]) -> 
         return score, "coincidencia_alta"
     if score >= 0.55:
         return score, "coincidencia_media"
-    if shared_token_count >= 3:
+    if shared_token_count >= 1:
         return score, "coincidencia_palabras_minimas"
     if score >= 0.35:
         return score, "coincidencia_baja"

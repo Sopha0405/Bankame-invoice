@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import time
+from typing import Optional
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -23,7 +24,7 @@ MODEL_NAMES = [
     model.strip()
     for model in os.getenv(
         "GEMINI_MODELS",
-        "gemini-2.5-flash,gemini-2.5-flash-lite",
+        "gemini-2.5-flash,gemini-2.5-pro",
     ).split(",")
     if model.strip()
 ]
@@ -144,6 +145,7 @@ def ejecutar_gemini(prompt: str, file_bytes: bytes, mime_type: str):
 
             except ClientError as e:
                 status_code = getattr(e, "code", None) or getattr(e, "status_code", None) or 400
+                last_error = e
                 logger.warning(
                     "Gemini client error model=%s attempt=%s status_code=%s status=%s message=%s",
                     model_name,
@@ -152,6 +154,11 @@ def ejecutar_gemini(prompt: str, file_bytes: bytes, mime_type: str):
                     getattr(e, "status", None),
                     getattr(e, "message", str(e)),
                 )
+                if status_code == 429:
+                    if intento < 2:
+                        time.sleep(10 * (intento + 1))
+                        continue
+                    break
                 raise GeminiAnalysisError(getattr(e, "message", str(e)), status_code)
 
             except ServerError as e:
@@ -188,10 +195,13 @@ def analizar_factura(
     nombres: str,
     apellido_paterno: str,
     apellido_materno: str,
-    direccion: str,
-    geolocalizacion: str,
+    direccion: Optional[str],
+    geolocalizacion: Optional[str],
     tipo_vivienda: int,
 ):
+    direccion = direccion or ""
+    geolocalizacion = geolocalizacion or ""
+
     prompt = f"""
 Eres un auditor experto de facturas bolivianas.
 
@@ -285,27 +295,27 @@ currency
 billing_period
 texto_extraido
 
-Responde exactamente con este JSON:
+Responde exactamente con este JSON, usando null si no detectas el dato:
 
 {{
-  "basic_service_type": 2,
-  "service_type_label": "agua",
-  "service_provider": "SAGUAPAC",
-  "service_code": "",
+  "basic_service_type": null,
+  "service_type_label": null,
+  "service_provider": null,
+  "service_code": null,
   "mensaje_validacion": null,
-  "holder_name": "",
-  "nombre_en_factura": "",
-  "direccion_en_factura": "",
+  "holder_name": null,
+  "nombre_en_factura": null,
+  "direccion_en_factura": null,
   "cliente_uv": null,
   "factura_uv": null,
-  "invoice_amount": 0,
-  "last_month_amount": 0,
-  "average_amount": 0,
+  "invoice_amount": null,
+  "last_month_amount": null,
+  "average_amount": null,
   "unpaid_invoice_count": 0,
   "currency": "BOB",
-  "billing_period": "",
-  "confidence": 0.98,
-  "texto_extraido": ""
+  "billing_period": null,
+  "confidence": 0.0,
+  "texto_extraido": null
 }}
 """
 

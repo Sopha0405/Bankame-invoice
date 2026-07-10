@@ -61,6 +61,7 @@ $deployArgs = @(
     "--region", $Region,
     "--service-account", $RuntimeServiceAccount,
     "--set-secrets", "GEMINI_API_KEY=gemini-api-key:latest",
+    "--env-vars-file", "cloudrun-env.yaml",
     "--port", "8080",
     "--memory", "1Gi",
     "--cpu", "1",

@@ -29,7 +29,7 @@ Crea un archivo `.env` local:
 
 ```env
 GEMINI_API_KEY=tu_api_key
-GEMINI_MODELS=gemini-2.5-flash,gemini-2.5-flash-lite
+GEMINI_MODELS=gemini-2.5-flash,gemini-2.5-pro
 ```
 
 En Cloud Run configura `GEMINI_API_KEY` como secreto. No subas `.env`, llaves ni archivos JSON de credenciales.
@@ -97,6 +97,7 @@ gcloud run deploy bankame-invoice \
   --source . \
   --region southamerica-west1 \
   --no-allow-unauthenticated \
+  --env-vars-file cloudrun-env.yaml \
   --set-secrets GEMINI_API_KEY=gemini-api-key:latest
 ```
 
