@@ -21,8 +21,8 @@ pytest-cache-files-*/
 .coverage
 .coverage.*
 .cache/
-.yaml
-.ps1
+cloudrun-env.yaml
+deploy-cloud-run.ps1
 
 *.log
 pip-log.txt
