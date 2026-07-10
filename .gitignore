@@ -21,6 +21,8 @@ pytest-cache-files-*/
 .coverage
 .coverage.*
 .cache/
+.yaml
+.ps1
 
 *.log
 pip-log.txt
