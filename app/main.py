@@ -4,12 +4,15 @@ from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from app.gemini_agent import GeminiAnalysisError, analizar_factura
 from app.models import FacturaResultado
+from app.routers.ci_quality import router as ci_quality_router
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Factura Analyzer AI"
 )
+
+app.include_router(ci_quality_router)
 
 SUPPORTED_CONTENT_TYPES = {
     "application/pdf",
