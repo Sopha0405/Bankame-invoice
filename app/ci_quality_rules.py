@@ -2,11 +2,12 @@ import re
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional
 
+PROMPT_VERSION = "ci-quality-v1"
+
 ISSUE_BLURRY = "blurry"
 ISSUE_TOO_DARK = "too_dark"
 ISSUE_NOT_IDENTITY_CARD = "not_identity_card"
 
-# Vocabulario cerrado. Se recorto a estos tres a proposito: no ampliar.
 ALLOWED_ISSUES = (ISSUE_BLURRY, ISSUE_TOO_DARK, ISSUE_NOT_IDENTITY_CARD)
 
 MAX_ISSUES = 2
