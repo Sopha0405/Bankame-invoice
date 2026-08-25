@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 FALLBACK_MODEL = "gemini-2.5-flash"
 
-TIMEOUT_MS = 30_000
+TIMEOUT_MS = 45_000
 RETRY_AFTER_SECONDS = 10
 
 MAX_ATTEMPTS = 2
