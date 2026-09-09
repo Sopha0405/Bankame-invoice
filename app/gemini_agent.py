@@ -219,6 +219,38 @@ OBJETIVO:
 Extraer automaticamente la informacion clave de una factura de luz o recibo de domicilio.
 Los campos no detectados deben devolverse como null. No inventes datos.
 
+MARCAS DE AGUA Y TEXTO EXTRAIDO:
+- Ignora las marcas de agua, logotipos y patrones decorativos del fondo en todos los campos.
+- Si aparecen palabras repetidas como "altoke" o "BancoSol" como marca de agua,
+  no las transcribas ni las incluyas en texto_extraido.
+- La presencia de una marca de agua no impide extraer los datos legibles del comprobante.
+- texto_extraido debe contener solo el contenido util visible, en orden de lectura,
+  sin repetir palabras o lineas por los patrones del fondo y con un maximo de 4000 caracteres.
+- Conserva el nombre del banco cuando sea un dato del contenido principal del comprobante.
+- Termina siempre el JSON completo; no continues transcribiendo patrones repetidos.
+
+COMPROBANTES DE PAGO DE SERVICIOS (por ejemplo, altoke / Banco Solidario):
+- Tambien extrae datos de comprobantes que indiquen "Pago de servicio exitoso".
+- "Para" identifica al proveedor del servicio; el banco es el canal de pago.
+- "De" identifica al pagador y no demuestra que sea el titular del servicio.
+  Usa holder_name y nombre_en_factura solo si el titular esta identificado como tal;
+  si solo aparece el pagador, devuelve null y conserva su nombre en texto_extraido.
+- No uses la cuenta bancaria del pagador, especialmente si esta enmascarada,
+  ni el numero de transaccion como service_code. Este campo requiere el codigo del servicio.
+- El importe pagado corresponde a invoice_amount y, si no hay promedio ni monto
+  del ultimo mes, tambien a average_amount conforme a la regla de respaldo.
+- La fecha de pago no es el periodo facturado: billing_period debe ser null si no aparece.
+- Un pago exitoso no demuestra que no existan deudas: unpaid_invoice_count debe ser
+  null si el comprobante no informa la cantidad de facturas pendientes.
+- No deduzcas una direccion, UV ni monto del ultimo mes si no estan visibles.
+- Ejemplo de lectura: un comprobante con "Para ELAPAS", "Bs 117.90",
+  "De COA MAMANI ELIBERTO", cuenta "1897******0-002", fecha "22/08/2026 16:51:09"
+  y transaccion "22082026/295/400/807/3240" indica service_provider="ELAPAS",
+  basic_service_type=2, currency="BOB", invoice_amount=117.90 y average_amount=117.90.
+  Sin otros datos, holder_name, nombre_en_factura, service_code, direccion_en_factura,
+  factura_uv, last_month_amount, billing_period y unpaid_invoice_count son null.
+  Este ejemplo es orientativo: extrae siempre los valores del archivo adjunto.
+
 DATOS OBLIGATORIOS:
 - holder_name: nombre del titular de la factura.
 - direccion_en_factura: direccion registrada en la factura.
@@ -264,11 +296,20 @@ Solo extrae la informacion visible en la factura.
 
 PROVEEDORES BOLIVIA:
 
+La lista siguiente contiene solo ejemplos frecuentes; no es una lista cerrada ni un
+requisito. Un comprobante puede corresponder a un servicio basico aunque el proveedor
+no aparezca aqui, tenga un nombre comercial desconocido, sea una cooperativa, una
+institucion o incluso no muestre claramente el nombre de una empresa.
+Extrae service_provider exactamente como aparece. Si no hay un proveedor legible,
+devuelve null, pero determina basic_service_type usando la evidencia del servicio
+(concepto pagado, descripcion, unidad de medida y contexto visible).
+No rechaces ni descartes el comprobante solamente por no reconocer al proveedor.
+
 Electricidad:
 DELAPAZ, CRE, ELFEC, CESSA, SEPSA, ENDE, COBEE, SETAR
 
 Agua:
-SAGUAPAC, SEMAPA, EPSAS, COSMOL, COOPLAN, EMAPA
+SAGUAPAC, SEMAPA, EPSAS, COSMOL, COOPLAN, EMAPA, ELAPAS
 
 Gas:
 YPFB, YPFB GAS, EMTAGAS
@@ -283,7 +324,9 @@ TIPO SERVICIO:
 4 Internet = Mbps, fibra, internet
 
 Prioridad para tipo de servicio:
-unidad de medida > concepto > proveedor
+unidad de medida > concepto o descripcion del pago > contexto del comprobante > proveedor
+El nombre de una empresa conocida sirve como apoyo, pero no es obligatorio para
+identificar un servicio basico.
 
 Extrae tambien:
 service_code (codigo de cliente, numero de cuenta, codigo fijo o numero de suministro)
@@ -311,7 +354,7 @@ Responde exactamente con este JSON, usando null si no detectas el dato:
   "invoice_amount": null,
   "last_month_amount": null,
   "average_amount": null,
-  "unpaid_invoice_count": 0,
+  "unpaid_invoice_count": null,
   "currency": "BOB",
   "billing_period": null,
   "confidence": 0.0,
